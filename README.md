@@ -1,1 +1,1 @@
-# Application-of-algorithms-in-R-and-Python
+# Certificate Data Science exercises in R and Python

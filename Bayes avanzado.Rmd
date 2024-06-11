@@ -1,0 +1,566 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+#Mio
+El uso de la regresion lineal Bayesiono es de caracter 
+
+
+
+
+
+
+
+# Regresión lineal bayesiana
+
+La regresión es un método estadístico que se utiliza ampliamente en modelos cuantitativos. La regresión lineal es un enfoque básico y estándar en el que los investigadores utilizan los valores de varias variables para explicar o predecir valores de un resultado de escala.
+
+$Y_{i}=(\beta_{0}+\beta_{1}X_{1i}+\beta_{2}X_{2i}+\cdots+\beta_{n}X_{ni})+e_{i}$
+
+La regresión lineal Bayesiana es un enfoque de Regresión lineal donde el análisis estadístico se realiza dentro del contexto de la inferencia Bayesiana.
+
+La inferencia Bayesiana se realiza desde una perspectiva a la que se accede caracterizando las distribuciones posteriores.
+
+Para poder realizar este tipo de modelo necesitamos instalar el paquete `LearnBayes`.
+
+```{r}
+#install.packages("LearnBayes")
+library(LearnBayes)
+```
+
+## Simulación de datos
+
+```{r}
+set.seed(0)
+casos=1000
+datos <- data.frame(x1=runif(n=casos, min=0, max=1))
+datos$x2 <- rnorm(n=casos, mean=3, sd=1)
+datos$y1 <- datos$x1*2.9+rnorm(n=casos, mean=1, sd=.1)
+datos$y2 <- datos$x1*2.9+rnorm(n=casos, mean=1, sd=.1) +
+    datos$x1*rnorm(n=casos, mean=0, sd=.5)
+```
+
+Un uso que podemos darle a este tipo de regresiones es para definir si un nuevo punto observado fuera del rango de la muestra es un valor atípico.
+
+```{r}
+plot(datos$x1, datos$y1, xlim = c(0,1.3), ylim=c(0,5))
+points(x=1.2, y=4.5, col=2, lwd=3)
+```
+
+```{r}
+plot(datos$x1, datos$y2, xlim = c(0,1.3), ylim=c(0,5))
+points(x=1.2, y=4.5, col=2, lwd=3)
+```
+
+## Construyo los modelos
+
+Creamos los modelos para encontrar la curva que mejor se ajusta a los puntos.
+
+```{r}
+modelo1 <- lm(formula = y1~x1+x2, data=datos)
+```
+
+```{r}
+plot(datos$x1, datos$y1, xlim = c(0,1.3), ylim=c(0,5))
+points(x=1.2, y=4.5, col=2, lwd=3)
+abline(modelo1$coefficients[1],modelo1$coefficients[2], col="red")
+```
+
+```{r}
+summary(modelo1)
+```
+
+## Realizamos el segundo modelo
+
+```{r}
+modelo2 <- lm(formula = y2~x1+x2, data=datos)
+```
+
+```{r}
+plot(datos$x1, datos$y2, xlim = c(0,1.3), ylim=c(0,5))
+points(x=1.2, y=4.5, col=2, lwd=3)
+abline(modelo2$coefficients[1],modelo2$coefficients[2], col="red")
+```
+
+```{r}
+summary(modelo2)
+```
+
+Observamos que los coeficientes son bastantes similares en ambos modelos
+
+```{r}
+modelo1$coefficients
+modelo2$coefficients
+```
+
+## Modelo Lineal bayesiano
+
+Ahora vamos a construir una regresión bayesiana para obtener una distribución de los coeficientes del modelo. En cada una de las simulaciones que se realizarán se obtendrán coeficientes diferentes y por lo tanto también podremos calcular una distribución de las estimaciones de $y$.
+
+```{r}
+theta1<-blinreg(y=datos$y1, X= cbind(1, datos$x1, datos$x2), m=5000)
+theta2<-blinreg(y=datos$y2, X= cbind(1, datos$x1, datos$x2), m=5000)
+```
+
+Ahora que contamos con 5000 modelos-muestras diferentes, podemos analizar las distribuciones de los resultados que obtuvimos a posteriori.
+
+### Observamos theta1
+
+Como se distribuyen los coeficentes?
+
+```{r}
+hist(theta1$beta[,1],main="Distribución a posteriori de B0")
+abline(v = median(theta1$beta[,1]), col=2, lwd=3)
+hist(theta1$beta[,2],main="Distribución a posteriori de B1")
+abline(v = median(theta1$beta[,2]), col=2, lwd=3)
+hist(theta1$beta[,3],main="Distribución a posteriori de B2")
+abline(v = median(theta1$beta[,3]), col=2, lwd=3)
+```
+
+### Observamos theta2
+
+Obervamos la distribución de los coeficientes del segundo modelo
+
+```{r}
+hist(theta2$beta[,1],main="Distribución a posteriori de B0")
+abline(v = median(theta2$beta[,1]), col=2, lwd=3)
+hist(theta2$beta[,2],main="Distribución a posteriori de B1")
+abline(v = median(theta2$beta[,2]), col=2, lwd=3)
+hist(theta2$beta[,3],main="Distribución a posteriori de B2")
+abline(v = median(theta2$beta[,3]), col=2, lwd=3)
+```
+
+Ahora, ¿cómo podemos evaluar y definir los parámetros del modelo?. La respuesta es analizando las distribuciones a posteriori y utilizando algunas estadísticas específicas.
+
+## Análisis para theta1
+
+### Calculamos la mediana de las estimaciones a posteriori
+
+Para definir cual es el coeficiente elegido de todos los obtenidos optamos por la mediana.?????????????????????????????????????????
+
+```{r}
+apply(theta1$beta, MARGIN = 2, FUN=median)
+apply(theta2$beta, MARGIN = 2, FUN=median)
+```
+
+### ¿Algún coeficiente es igual a cero?
+
+Podemos determinar la poca significatividad de un coeficiente si este presenta evidencia de ser nulo.
+
+Podemos medir los valores que concentran el 90% de los casos. Si el intervalo no contiene al cero, entonces podemos concluir que el coeficiente es no nulo.
+
+```{r}
+quantile(x=theta2$beta[,1], probs = c(0.05, 0.95))
+quantile(x=theta2$beta[,2], probs = c(0.05, 0.95))
+quantile(x=theta2$beta[,3], probs = c(0.05, 0.95))
+```
+
+El coeficiente `x3` no presenta evidencia de ser distinto de nulo.
+
+## Detectar valores atípicos fuera de la muestra
+
+Supongamos que tenemos un nuevo valor para x1=1.2 (el punto rojo donde y=4.5). ¿Es este un valor atípico?
+
+```{r}
+nuevo <- matrix(data=c(1,1.2,0), nrow=1, ncol=3)
+```
+
+Y calculamos la distribución de sus estimaciones. Con la función `blinregexpected()` calculamos las estimaciones para cada set de coeficientes.
+
+```{r}
+media.nuevo <- blinregexpected(nuevo, theta1)
+```
+
+Ahora tenemos una distribución de predicciones.
+
+```{r}
+hist(media.nuevo)
+abline(v=4.5, col=2, lwd=3)
+```
+
+¿Qué porcentaje de las predicciones son superiores a 4.5?
+
+```{r}
+sum(media.nuevo>4.5)/length(media.nuevo)
+```
+
+Además podemos calcular el intervalo de confianza de las estimaciones.
+
+```{r}
+quantile(x=media.nuevo[,1], probs = c(0.05, 0.95))
+```
+
+### Límites para determinar outliers
+
+$$ mean(X) \pm 2*desvio(X)$$
+
+```{r}
+limInf <- mean(media.nuevo)-2*sd(media.nuevo)
+limSup <- mean(media.nuevo)+2*sd(media.nuevo)
+```
+
+Ahora veamos si el nuevo valor es atípico para la variable $y2$.
+
+```{r}
+media.nuevo2<-blinregexpected(nuevo, theta2)
+
+hist(media.nuevo2)
+abline(v=4.5, col=2, lwd=3)
+```
+
+```{r}
+sum(media.nuevo2>4.5)/length(media.nuevo2)
+```
+
+```{r}
+quantile(x=media.nuevo2[,1], probs = c(0.05, 0.95))
+```
+
+```{r}
+limInf <- mean(media.nuevo2)-2*sd(media.nuevo2)
+limSup <- mean(media.nuevo2)+2*sd(media.nuevo2)
+```
+
+## Realizamos algunas predicciones
+
+También podemos emplear el modelo para realizar predicciones.
+
+Por ejemplo, contamos con dos nuevos casos representados por la siguiente matriz.
+
+```{r}
+nuevos <- matrix(data=c(1,1.5,4, 1, 3, 10), nrow=2, ncol=3, byrow = T)
+```
+
+Obtenemos las predicciones de las 5000 simulaciones
+
+```{r}
+media1<-blinregexpected(nuevos, theta1)
+```
+
+Una vez que tenemos las estimaciones de todas las muestras podemos realizar diferentes análisis de la distribución de estas estimaciones.
+
+### Media de las estimaciones
+
+```{r}
+apply(media1, MARGIN = 2, FUN = mean)
+```
+
+### Intervalo de confianza de las estimaciones
+
+```{r}
+quantile(x=media1[,1], probs = c(0.05, 0.95))
+quantile(x=media1[,2], probs = c(0.05, 0.95))
+```
+
+### Histograma de las estimaciones
+
+```{r}
+hist(media1[,1])
+abline(v=mean(media1[,1]), col=2, lwd=3)
+```
+
+...y para $y2$
+
+```{r}
+media2<-blinregexpected(nuevos, theta2)
+```
+
+```{r}
+apply(media2, MARGIN = 2, FUN = mean)
+```
+
+```{r}
+quantile(x=media2[,1], probs = c(0.05, 0.95))
+quantile(x=media2[,2], probs = c(0.05, 0.95))
+```
+
+```{r}
+hist(media2[,1])
+abline(v=mean(media2[,1]), col=2, lwd=3)
+```
+
+# Regresión logística
+
+La Regresión Logística es un método de regresión que permite estimar la probabilidad de una variable cualitativa binaria en función de otras. Un uso típico de este tipo de regresiones es para clasificar una observación a un grupo u otro, por ejemplo, clasificar a un paciente que necesita ser hospitalizado en base a ciertos signos vitales.
+
+Una regresión logística intenta crear una recta que se ajuste a los logaritmos de los ODDS (P(y=k) sobre 1-P(y=k)).
+
+$ln(\frac{p(Y=k|X = x)}{1-p(Y=k|X = x)})=\beta_0+\beta_1X$
+
+Aplicando ciertas transformaciones, la ecuación anterior se traduce a:
+
+$P(Y=y|X = x)= \frac{1}{1+e^{-(\beta_0+\beta_1X)}}$
+
+...conocida como función sigmoide.
+
+## Simulamos datos
+
+```{r}
+n=1000
+set.seed(0)
+x1 <- rnorm(n) 
+x2 <- rnorm(n)
+x3 <- rnorm(n)
+z = 1 + 2*x1 + 3*x2
+pr = 1/(1+exp(-z)) 
+y = rbinom(n,1,pr) 
+
+df = data.frame(y=y,x1=x1,x2=x2, x3=x3)
+```
+
+A modo de ejemplo realizamos una regresión logística simple.
+
+```{r}
+modelo.log1 =glm(y~x1,data=df,family="binomial")
+summary(modelo.log1)
+```
+
+La regresión logística no busca la recta que mejor se ajusta a los puntos, sino que ajusta una curva de forma sigmoidal.
+
+```{r}
+#creamos valores a predecir
+Predicted_data <- data.frame(x1=seq(from=min(df$x1),
+                                    to=max(df$x1),
+                                    length.out=n))
+ 
+#Calculamos las predicciones
+Predicted_data$y = predict(
+  modelo.log1, Predicted_data, type="response")
+ 
+# Graficamos los puntos y la curva
+plot(x=df$x1 ,y= df$y, col=rgb(0, 0, 0,alpha=20, maxColorValue = 255))
+lines(y~x1 , Predicted_data, lwd=2, col="green")
+```
+
+## ¿Cómo se interpreta el coeficiente?
+
+```{r}
+summary(modelo.log1)
+```
+
+El valor $\beta_1$ implica que por cada unidad que se incrementa $X_1$ el valor en los odds de los x1=1 son $exp(\beta_1)$ veces más grandes que los odds de los x1=0.
+
+```{r}
+exp(modelo.log1$coefficients[2])
+```
+
+```{r}
+#Calculamos y para X1=1
+y_1 <- 1/(1+ exp(-modelo.log1$coefficients[1]- 1*modelo.log1$coefficients[2]))
+#Calculamos y para X1=0
+y_0  <- 1/(1+ exp(-modelo.log1$coefficients[1]- 0*modelo.log1$coefficients[2]))
+```
+
+```{r}
+#Calculamos los odds
+(y_1/(1-y_1)) / (y_0/(1-y_0))#Esto interpreta beta!!
+```
+
+El exp() del término independiente representa los odds para X=0.
+
+
+## Separo en trining y testing
+
+```{r}
+seleccion <- sample(1:n, n*0.7, replace=FALSE)
+trining <- df[seleccion,]
+testing <- df[-seleccion,]
+```
+
+```{r}
+modelo.log =glm( y~x1+x2+x3,data=trining,family="binomial")
+summary(modelo.log)
+```
+
+```{r}
+modelo.log =glm( y~x1+x2,data=trining,family="binomial")
+summary(modelo.log)
+```
+
+## Histograma de las predicciones
+
+```{r}
+hist(modelo.log$fitted.values)
+```
+
+## Matriz de confusión
+
+```{r}
+predicciones <- predict(modelo.log, testing)
+clasifico <- (predicciones>0.5)*1
+table(clasifico, testing$y)
+```
+
+## Umbral óptimo
+
+```{r}
+pruebo <-seq(0.1, .9, by=0.03)
+guardo <- matrix(9, nrow=length(pruebo), ncol=2)
+
+for (i in 1:length(pruebo)){
+    guardo[i,1] <- pruebo[i]
+    clasifico <- (predicciones>pruebo[i])*1
+    
+    guardo[i,2] <- table(clasifico, testing$y)[3]/nrow(testing)
+    
+}
+```
+
+# Caso Real
+
+```{r}
+#install.packages("liver")
+library(liver)
+
+data("churnTel")
+summary(churnTel)
+```
+
+
+## Particionamiento
+
+```{r}
+muestra<-sample(x=nrow(churnTel), size=nrow(churnTel)*.6, replace=TRUE)
+training<-churnTel[muestra,-1]
+testing<-churnTel[-muestra,-1]
+```
+
+## Modelo
+
+```{r}
+modelo =glm(churn~.,data=training,family="binomial")
+summary(modelo)
+```
+
+```{r}
+predicciones <- predict(modelo, testing)
+predicho <- ifelse(predicciones>0.5, "no", "yes")
+table(predicho, testing$churn)
+```
+
+
+## Step Model
+
+```{r}
+modelo.both<-step(modelo, direction = "both", trace=0)
+
+modelo.backward<-step(modelo, direction = "backward", trace=0)
+
+modelo.forward<-step(modelo, direction = "forward", trace=0)
+```
+
+```{r}
+summary(modelo.both)
+summary(modelo.backward)
+summary(modelo.forward)
+```
+
+
+
+
+# Redes Bayesianas
+
+No es simple instalar el paquete gRain. El proceso puede no ser simple como los demás.
+
+Esta librería requiere del paquete graph
+
+<https://stackoverflow.com/questions/31252102/bayesian-network-with-r>
+
+```{r}
+if (!requireNamespace("BiocManager", quietly = TRUE))
+    install.packages("BiocManager")
+BiocManager::install(c("graph", "RBGL", "Rgraphviz"))
+```
+
+```{r}
+#install.packages("gRain", dependencies=TRUE)
+```
+
+Instalar gRbase manualmente. Descargar el .zip
+
+```{r}
+#library(gRain)
+```
+
+# Redes bayesianas con `bnlearn`
+
+
+```{r}
+#install.packages("bnlearn")
+library(bnlearn)
+data(learning.test)
+
+bayesnet<-hc(learning.test)
+plot(bayesnet)  
+bayesnet<-set.arc(bayesnet,"B","A")
+plot(bayesnet) 
+
+fitted<-bn.fit(bayesnet,learning.test,method="mle")
+pre<-predict(fitted,data=learning.test, node = "F") 
+
+cpquery(fitted,(F=="a"),(A=="c"& B=="b"))
+```
+
+
+
+# Regresiones bayesianas con la librería `rstanarm`
+
+```{r}
+#install.packages("rstanarm")
+library(rstanarm)
+```
+
+```{r eval=FALSE, message=FALSE, include=FALSE}
+modelo3<-stan_glm(y1 ~x1+x2,
+                  data=datos,
+                  #family = binomial(link = "logit"),#Para reg. logística
+                    seed=0, 
+                    iter=5000)
+```
+
+```{r}
+print(modelo3, digits = 3)
+```
+
+```{r}
+library(bayesplot)
+mcmc_dens(modelo3, pars = c("(Intercept)"))+
+  vline_at(modelo3$coefficients[1], col="red")
+mcmc_dens(modelo3, pars = c("x1"))+
+  vline_at(modelo3$coefficients[2], col="red")
+mcmc_dens(modelo3, pars = c("x2"))+
+  vline_at(modelo3$coefficients[3], col="red")
+```
+
+## Análisis de los resultados
+
+-   `CI` Indican los valores que acumulan un 95% de los valores
+
+-   `PD` Probabilidad de Dirección, que es la probabilidad de que el efecto vaya en dirección positiva o negativa, y se considera como el mejor equivalente del p-valor.
+
+-   `ROPE` Indica una región pequeña alrededor del cero lo cual se puede considerar como efecto nulo
+
+-   `% in ROPE` Indica el porcentaje de casos que cae dentro de la región ROPE
+
+-   `Rhat`
+
+-   `ESS`
+
+```{r}
+#install.packages("bayestestR")
+library(bayestestR)
+describe_posterior(modelo3)
+```
+
+## Predicciones
+
+```{r}
+nuevos2<- data.frame(x1=c(2,3), x2=c(5,6))
+```
+
+```{r}
+posterior_predict(
+  object=modelo3,
+  newdata = nuevos2
+)
+```
